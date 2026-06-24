@@ -87,7 +87,7 @@ const CreateCampaignPage = () => {
         <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "1.5rem" }}>
           <div>
             <label style={{ display: "block", fontWeight: "bold", marginBottom: "0.5rem" }}>
-              🎯 众筹目标金额 (ETH)
+              💰众筹目标金额 (ETH)
             </label>
             <input
               type="number"
@@ -110,7 +110,7 @@ const CreateCampaignPage = () => {
 
           <div>
             <label style={{ display: "block", fontWeight: "bold", marginBottom: "0.5rem" }}>
-              ⏰ 众筹时长 (天)
+              📅 众筹时长 (天)
             </label>
             <input
               type="number"

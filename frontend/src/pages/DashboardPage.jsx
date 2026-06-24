@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from "react";
+import { ethers } from "ethers";
 import { Line, Bar } from "react-chartjs-2";
 import {
   Chart as ChartJS,
@@ -12,6 +13,7 @@ import {
   Legend,
   Filler,
 } from "chart.js";
+import { getCrowdfundingContractReadOnly } from "../utils/contract";
 
 ChartJS.register(
   CategoryScale,
@@ -28,9 +30,38 @@ ChartJS.register(
 const DashboardPage = () => {
   const [fundingHistory, setFundingHistory] = useState([]);
   const [participantHistory, setParticipantHistory] = useState([]);
+  const [currentRaised, setCurrentRaised] = useState("0");
+  const [currentGoal, setCurrentGoal] = useState("0");
+  const [currentParticipants, setCurrentParticipants] = useState(0);
 
+  // ============ 加载链上实时数据 ============
+  useEffect(() => {
+    const loadChainData = async () => {
+      try {
+        const contract = getCrowdfundingContractReadOnly();
+        const info = await contract.getCampaignInfo();
+        setCurrentRaised(ethers.utils.formatEther(info.raised));
+        setCurrentGoal(ethers.utils.formatEther(info.target));
+        setCurrentParticipants(Number(info.participantCount));
+        console.log("[看板] 链上数据更新:", {
+          raised: ethers.utils.formatEther(info.raised),
+          goal: ethers.utils.formatEther(info.target),
+          participants: Number(info.participantCount)
+        });
+      } catch (e) {
+        console.error("[看板] 加载链上数据失败:", e);
+      }
+    };
+
+    loadChainData();
+    const interval = setInterval(loadChainData, 15000); // 每 15 秒刷新
+    return () => clearInterval(interval);
+  }, []);
+
+  // ============ 加载历史数据（来自 localStorage） ============
   useEffect(() => {
     const history = JSON.parse(localStorage.getItem("fundingHistory") || "[]");
+    console.log(`[看板] 加载到 ${history.length} 条历史数据`);
     if (history.length > 0) {
       setFundingHistory(history.map(d => ({ time: d.time, amount: d.amount })));
       setParticipantHistory(history.map(d => ({ time: d.time, count: d.count })));
@@ -40,18 +71,11 @@ const DashboardPage = () => {
   const lineOptions = {
     responsive: true,
     plugins: {
-      legend: {
-        position: "top",
-      },
-      title: {
-        display: true,
-        text: "众筹数据趋势",
-      },
+      legend: { position: "top" },
+      title: { display: true, text: "众筹数据趋势" },
     },
     scales: {
-      y: {
-        beginAtZero: true,
-      },
+      y: { beginAtZero: true },
     },
   };
 
@@ -83,28 +107,39 @@ const DashboardPage = () => {
     ],
   };
 
-  const barOptions = {
-    responsive: true,
-    plugins: {
-      legend: {
-        position: "top",
-      },
-      title: {
-        display: true,
-        text: "参与人数分布",
-      },
-    },
-  };
-
   return (
     <div>
       <div className="card">
-        <h2>📊 数据看板</h2>
+        <h2>数据看板</h2>
         <p style={{ color: "#6B7280" }}>众筹数据实时分析</p>
       </div>
 
       <div className="card">
-        <h3>💰 资金筹集曲线</h3>
+        <h3>当前众筹状态</h3>
+        <div className="stats">
+          <div className="stat-item">
+            <div className="number">{parseFloat(currentRaised).toFixed(2)} ETH</div>
+            <div className="label">已筹金额</div>
+          </div>
+          <div className="stat-item">
+            <div className="number">{parseFloat(currentGoal).toFixed(2)} ETH</div>
+            <div className="label">目标金额</div>
+          </div>
+          <div className="stat-item">
+            <div className="number">{currentParticipants}</div>
+            <div className="label">参与人数</div>
+          </div>
+          <div className="stat-item">
+            <div className="number">
+              {parseFloat(currentGoal) > 0 ? ((parseFloat(currentRaised) / parseFloat(currentGoal)) * 100).toFixed(1) : 0}%
+            </div>
+            <div className="label">完成度</div>
+          </div>
+        </div>
+      </div>
+
+      <div className="card">
+        <h3>资金筹集曲线</h3>
         {fundingHistory.length > 0 ? (
           <Line options={lineOptions} data={fundingData} />
         ) : (
@@ -115,7 +150,7 @@ const DashboardPage = () => {
       </div>
 
       <div className="card">
-        <h3>👥 参与者增长趋势</h3>
+        <h3>参与者增长趋势</h3>
         {participantHistory.length > 0 ? (
           <Line options={lineOptions} data={participantData} />
         ) : (
@@ -126,17 +161,17 @@ const DashboardPage = () => {
       </div>
 
       <div className="card">
-        <h3>📈 统计数据</h3>
+        <h3>统计数据</h3>
         <div className="stats">
           <div className="stat-item">
             <div className="number">
-              {fundingHistory.length > 0 ? fundingHistory[fundingHistory.length - 1].amount.toFixed(2) : 0}
+              {fundingHistory.length > 0 ? fundingHistory[fundingHistory.length - 1].amount.toFixed(2) : parseFloat(currentRaised).toFixed(2)}
             </div>
             <div className="label">最新筹集 (ETH)</div>
           </div>
           <div className="stat-item">
             <div className="number">
-              {participantHistory.length > 0 ? participantHistory[participantHistory.length - 1].count : 0}
+              {participantHistory.length > 0 ? participantHistory[participantHistory.length - 1].count : currentParticipants}
             </div>
             <div className="label">最新参与人数</div>
           </div>

@@ -3,6 +3,7 @@ import { ethers } from "ethers";
 import {
   getProvider,
   getTokenContractReadOnly,
+  checkNetwork,
 } from "../utils/contract";
 
 const ProfilePage = ({ account, setAccount }) => {
@@ -11,21 +12,28 @@ const ProfilePage = ({ account, setAccount }) => {
   const [isLoading, setIsLoading] = useState(false);
   const [networkInfo, setNetworkInfo] = useState({});
 
+  // ============ 加载 ETH 余额和代币余额 ============
   const loadBalances = async () => {
     if (!account) return;
     setIsLoading(true);
+    console.log("[钱包] 加载余额中...");
     try {
+      // 先检查网络
+      await checkNetwork();
+      
       const provider = getProvider();
       
       const balance = await provider.getBalance(account);
       setEthBalance(ethers.utils.formatEther(balance));
+      console.log("[钱包] ETH 余额:", ethers.utils.formatEther(balance));
 
       try {
         const tokenContract = getTokenContractReadOnly();
         const tokenBal = await tokenContract.balanceOf(account);
-        setTokenBalance(tokenBal.toString());
+        setTokenBalance(ethers.utils.formatEther(tokenBal));
+        console.log("[钱包] 代币余额:", ethers.utils.formatEther(tokenBal));
       } catch (error) {
-        console.error("加载代币余额失败:", error);
+        console.error("[钱包] 加载代币余额失败:", error);
         setTokenBalance("0");
       }
 
@@ -34,45 +42,48 @@ const ProfilePage = ({ account, setAccount }) => {
         name: network.name || "未知网络",
         chainId: network.chainId,
       });
+      console.log("[钱包] 余额加载完成");
     } catch (error) {
-      console.error("加载余额失败:", error);
+      console.error("[钱包] 加载余额失败:", error);
     }
     setIsLoading(false);
   };
 
-  // ✅ 切换账户 - 弹出 MetaMask 账户列表
+  // ============ 切换账户 - 弹出 MetaMask 账户列表 ============
   const switchAccount = async () => {
     if (!window.ethereum) {
-      alert("请安装MetaMask！");
+      alert("请安装 MetaMask 钱包！");
       return;
     }
     try {
-      // 这会弹出 MetaMask 的账户选择列表
+      console.log("[钱包] 正在切换账户...");
       const accounts = await window.ethereum.request({
         method: "eth_requestAccounts",
       });
       if (accounts.length > 0) {
         setAccount(accounts[0]);
         localStorage.setItem("connectedAccount", accounts[0]);
-        alert(`✅ 已切换到账户: ${accounts[0].slice(0, 6)}...${accounts[0].slice(-4)}`);
-        // 重新加载余额
+        console.log(`[钱包] 已切换到账户: ${accounts[0]}`);
+        alert(`已切换到账户: ${accounts[0].slice(0, 6)}...${accounts[0].slice(-4)}`);
         setTimeout(loadBalances, 500);
       }
     } catch (error) {
       if (error.code === 4001) {
-        console.log("用户拒绝切换账户");
+        console.log("[钱包] 用户拒绝切换账户");
       } else {
-        console.error("切换账户失败:", error);
-        alert("❌ 切换账户失败");
+        console.error("[钱包] 切换账户失败:", error);
+        alert("切换账户失败，请查看控制台");
       }
     }
   };
 
+  // ============ 断开钱包连接 ============
   const disconnectWallet = () => {
     if (window.ethereum) {
       setAccount(null);
       localStorage.removeItem("connectedAccount");
-      alert("✅ 已断开钱包连接");
+      console.log("[钱包] 已断开钱包连接");
+      alert("已断开钱包连接");
     }
   };
 

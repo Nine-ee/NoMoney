@@ -1,0 +1,34 @@
+# 依赖
+node_modules/
+frontend/node_modules/
+
+# 环境变量
+.env
+.env.local
+.env.*.local
+
+# Hardhat 缓存和产物
+cache/
+artifacts/
+frontend/src/artifacts/
+frontend/src/build-info/
+
+# 合约部署地址（每次部署都变）
+frontend/src/contract-address.json
+
+# 前端构建产物
+frontend/build/
+frontend/dist/
+
+# 系统文件
+.DS_Store
+Thumbs.db
+
+# IDE
+.vscode/
+.idea/
+*.swp
+
+# 日志
+*.log
+npm-debug.log*

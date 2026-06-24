@@ -6,9 +6,16 @@ const MyOrdersPage = ({ account }) => {
   useEffect(() => {
     const savedOrders = localStorage.getItem("orders");
     if (savedOrders) {
-      setOrders(JSON.parse(savedOrders));
+      const allOrders = JSON.parse(savedOrders);
+      // 只显示当前账户的订单
+      if (account) {
+        const userOrders = allOrders.filter(order => order.account && order.account.toLowerCase() === account.toLowerCase());
+        setOrders(userOrders);
+      } else {
+        setOrders(allOrders);
+      }
     }
-  }, []);
+  }, [account]);
 
   return (
     <div>

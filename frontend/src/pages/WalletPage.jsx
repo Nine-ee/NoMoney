@@ -20,7 +20,7 @@ const WalletPage = ({ account }) => {
 
       const tokenContract = getTokenContractReadOnly();
       const tokenBal = await tokenContract.balanceOf(account);
-      setTokenBalance(tokenBal.toString()); // 这里如果是 0，说明代币确实没 mint 到
+      setTokenBalance(ethers.utils.formatEther(tokenBal));
     } catch (error) {
       console.error("加载余额失败:", error);
     }
