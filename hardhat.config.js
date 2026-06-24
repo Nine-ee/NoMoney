@@ -27,11 +27,17 @@ module.exports = {
   networks: {
     hardhat: {
       chainId: 31337,
-      // 这些是 hardhat 网络默认配置，明确写出来
+      // 自动挖矿：每秒挖一个区块，时间自动推进
+      mining: {
+        auto: true,
+        interval: 1000  // 1秒挖一个区块
+      }
     },
     localhost: {
       url: "http://127.0.0.1:8545",
       chainId: 31337,
+      // 本地节点也设置自动挖矿
+      timeout: 60000
     }
   }
 };
