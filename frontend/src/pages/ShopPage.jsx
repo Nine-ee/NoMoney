@@ -7,9 +7,9 @@ const { crowdfundingAddress } = contractAddress;
 
 // 默认商品数据
 const defaultProducts = [
-  { id: 1, name: "纪念贴纸", price: 100, image: "🎨", stock: 100 },
-  { id: 2, name: "限量T恤", price: 500, image: "👕", stock: 50 },
-  { id: 3, name: "帆布包", price: 300, image: "👜", stock: 30 },
+  { id: 1, name: "T恤", price: 50000, image: "photos/image1.png", stock: 100 },
+  { id: 2, name: "纪念币", price: 10000, image: "photos/image2.png", stock: 50 },
+  { id: 3, name: "帆布包", price: 30000, image: "photos/image3.png", stock: 30 },
 ];
 
 const ShopPage = ({ account }) => {
@@ -22,7 +22,13 @@ const ShopPage = ({ account }) => {
   const loadProducts = () => {
     const savedProducts = localStorage.getItem("products");
     if (savedProducts) {
-      setProducts(JSON.parse(savedProducts));
+      const parsed = JSON.parse(savedProducts);
+      const updated = parsed.map(p => {
+        const def = defaultProducts.find(d => d.id === p.id);
+        return def ? { ...p, name: def.name, price: def.price, image: def.image } : p;
+      });
+      setProducts(updated);
+      localStorage.setItem("products", JSON.stringify(updated));
       console.log("[商城] 从缓存加载商品数据");
     } else {
       setProducts([...defaultProducts]);
@@ -38,7 +44,7 @@ const ShopPage = ({ account }) => {
       const contract = getTokenContractReadOnly();
       const balance = await contract.balanceOf(account);
       setTokenBalance(ethers.utils.formatEther(balance));
-      console.log("[商城] 代币余额:", ethers.utils.formatEther(balance));
+      console.log("[商城] NaCT 余额:", ethers.utils.formatEther(balance));
     } catch (error) {
       console.error("[商城] 加载余额失败:", error);
     }
@@ -53,7 +59,7 @@ const ShopPage = ({ account }) => {
 
     const balanceNum = parseFloat(tokenBalance);
     if (balanceNum < product.price) {
-      alert(`代币不足！需要 ${product.price} XXCT，当前只有 ${Math.floor(balanceNum)} XXCT`);
+      alert(`代币不足！需要 ${product.price.toLocaleString()} NaCT，当前只有 ${Math.floor(balanceNum).toLocaleString()} NaCT`);
       return;
     }
 
@@ -62,7 +68,7 @@ const ShopPage = ({ account }) => {
       return;
     }
 
-    console.log(`[商城] 开始兑换: ${product.name}, 价格: ${product.price} XXCT`);
+    console.log(`[商城] 开始兑换: ${product.name}, 价格: ${product.price} NaCT`);
     setIsLoading(true);
     try {
       const contract = await getTokenContract();
@@ -118,11 +124,11 @@ const ShopPage = ({ account }) => {
       <div className="card">
         <h2>纪念商城</h2>
         <p style={{ color: "#6B7280", marginBottom: "1rem" }}>
-          使用 XXCT 代币兑换专属纪念品
+          使用 NaCT 代币兑换专属纪念品
         </p>
         {account && (
           <p style={{ background: "#F3F4F6", padding: "0.5rem 1rem", borderRadius: "8px", display: "inline-block" }}>
-            代币余额：{parseFloat(tokenBalance).toFixed(0)} XXCT
+            代币余额：{parseFloat(tokenBalance).toFixed(0)} NaCT
           </p>
         )}
       </div>
@@ -130,9 +136,19 @@ const ShopPage = ({ account }) => {
       <div className="shop-grid">
         {products.map((product) => (
           <div key={product.id} className="shop-item">
-            <div style={{ fontSize: "4rem" }}>{product.image}</div>
+            <div className="shop-image-wrapper">
+              <img 
+                src={product.image} 
+                alt={product.name} 
+                className="shop-image"
+                onError={(e) => {
+                  e.target.style.display = 'none';
+                  e.target.parentElement.innerHTML = '<span style="font-size: 2rem; color: #9CA3AF;">[IMG]</span>';
+                }}
+              />
+            </div>
             <h3>{product.name}</h3>
-            <p className="price">{product.price} XXCT</p>
+            <p className="price">{product.price.toLocaleString()} NaCT</p>
             <p className="stock">库存：{product.stock} 件</p>
             <button
               className="btn"
@@ -161,16 +177,11 @@ const ShopPage = ({ account }) => {
               {orders.slice(0, 10).map((order, index) => (
                 <tr key={index}>
                   <td>{order.product}</td>
-                  <td>{order.price} XXCT</td>
+                  <td>{order.price.toLocaleString()} NaCT</td>
                   <td style={{ fontSize: "0.8rem", fontFamily: "monospace" }}>
-                    <a
-                      href={`https://sepolia.etherscan.io/tx/${order.txHash}`}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      style={{ color: "#4F46E5" }}
-                    >
+                    <span style={{ color: "#4F46E5" }}>
                       {order.txHash.slice(0, 12)}...
-                    </a>
+                    </span>
                   </td>
                   <td>{order.time}</td>
                 </tr>

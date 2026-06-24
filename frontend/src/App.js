@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from "react";
-import { BrowserRouter, Routes, Route, Link } from "react-router-dom";
+import { BrowserRouter, Routes, Route, NavLink } from "react-router-dom";
 import CrowdfundingPage from "./pages/CrowdfundingPage";
 import WalletPage from "./pages/WalletPage";
 import ShopPage from "./pages/ShopPage";
@@ -17,17 +17,15 @@ function App() {
       return;
     }
     try {
-      // ✅ 这会弹出 MetaMask 账户选择列表
       const accounts = await window.ethereum.request({
         method: "eth_requestAccounts",
       });
       if (accounts.length > 0) {
         setAccount(accounts[0]);
         localStorage.setItem("connectedAccount", accounts[0]);
-        console.log("✅ 已连接账户:", accounts[0]);
+        console.log("[钱包] 已连接账户:", accounts[0]);
       }
     } catch (error) {
-      // 用户拒绝连接
       if (error.code === 4001) {
         console.log("用户拒绝连接");
       } else {
@@ -43,7 +41,6 @@ function App() {
       setAccount(savedAccount);
     }
     if (window.ethereum) {
-      // 监听账户切换
       window.ethereum.on("accountsChanged", (accounts) => {
         if (accounts.length === 0) {
           setAccount(null);
@@ -60,14 +57,14 @@ function App() {
     <BrowserRouter>
       <div className="App">
         <nav className="navbar">
-          <h1 className="logo">🎯 XX众筹</h1>
+          <h1 className="logo">Na 众筹</h1>
           <div className="nav-links">
-            <Link to="/">众筹</Link>
-            <Link to="/wallet">钱包</Link>
-            <Link to="/shop">商城</Link>
-            <Link to="/orders">📋 我的订单</Link>
-            <Link to="/dashboard">📊 数据看板</Link>
-            <Link to="/profile">👤 个人中心</Link>
+            <NavLink to="/" end>众筹</NavLink>
+            <NavLink to="/wallet">钱包</NavLink>
+            <NavLink to="/shop">商城</NavLink>
+            <NavLink to="/orders">我的订单</NavLink>
+            <NavLink to="/dashboard">数据看板</NavLink>
+            <NavLink to="/profile">个人中心</NavLink>
           </div>
           <div className="wallet-section">
             {account ? (
@@ -76,7 +73,7 @@ function App() {
               </span>
             ) : (
               <button onClick={connectWallet} className="connect-btn">
-                🔗 连接钱包
+                连接钱包
               </button>
             )}
           </div>

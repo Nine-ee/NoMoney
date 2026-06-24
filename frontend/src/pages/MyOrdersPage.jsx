@@ -40,7 +40,7 @@ const MyOrdersPage = ({ account }) => {
               <tr>
                 <th>#</th>
                 <th>商品</th>
-                <th>价格 (XXCT)</th>
+                <th>价格 (NaCT)</th>
                 <th>交易哈希</th>
                 <th>时间</th>
                 <th>状态</th>

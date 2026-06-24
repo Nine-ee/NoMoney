@@ -203,23 +203,36 @@ const ProfilePage = ({ account, setAccount }) => {
 
           <div className="card">
             <h3>📊 代币信息</h3>
-            <p><strong>代币名称：</strong>XX众筹代币</p>
-            <p><strong>代币符号：</strong>XXCT</p>
-            <p><strong>兑换比例：</strong>1 ETH = 10,000 XXCT</p>
-            <p><strong>早鸟奖励：</strong>前10名额外+20%</p>
-            <p><strong>用途：</strong>在商城兑换纪念商品</p>
+            <p><strong>代币名称：</strong>Na 创业启动资金代币</p>
+            <p><strong>代币符号：</strong>NaCT</p>
+            <p><strong>兑换比例：</strong>1 ETH = 10,000 NaCT</p>
+            <p><strong>早鸟奖励：</strong>前10名投资者额外+20%</p>
+            <p><strong>用途：</strong>在纪念商城兑换专属纪念品（T恤、纪念币、帆布包）</p>
+            <p><strong>发放时机：</strong>众筹成功且冷静期结束后发放</p>
           </div>
 
           <div className="card">
             <h3>⚡ 快速操作</h3>
             <div style={{ display: "flex", gap: "1rem", flexWrap: "wrap" }}>
-              <button className="btn" onClick={() => window.location.href = "/"}>
+              <button 
+                className="btn" 
+                onClick={() => window.location.href = "/"}
+                style={{ background: "#3B82F6" }}
+              >
                 🎯 去众筹
               </button>
-              <button className="btn" onClick={() => window.location.href = "/shop"}>
+              <button 
+                className="btn" 
+                onClick={() => window.location.href = "/shop"}
+                style={{ background: "#10B981" }}
+              >
                 🛍️ 去商城
               </button>
-              <button className="btn btn-success" onClick={() => window.location.href = "/wallet"}>
+              <button 
+                className="btn" 
+                onClick={() => window.location.href = "/wallet"}
+                style={{ background: "#F59E0B" }}
+              >
                 👛 查看钱包
               </button>
             </div>
