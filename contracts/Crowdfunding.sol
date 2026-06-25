@@ -84,6 +84,8 @@ contract Crowdfunding is ReentrancyGuard {
     ) {
         require(goal > 0, "Goal must be positive");
         require(tokenAddress != address(0), "Invalid token address");
+        require(earlyBirdBonusRate <= 5000, "Bonus rate too high"); // 最多50%
+        require(earlyBirdBonusRate >= 0, "Bonus rate cannot be negative"); // 不能为负
 
         i_owner = msg.sender;
         s_goal = goal;
@@ -102,7 +104,10 @@ contract Crowdfunding is ReentrancyGuard {
         require(msg.value > 0, "Investment must be greater than 0");
 
         // 基础兑换比例：1 ETH = 10,000 代币
-        uint256 baseTokenAmount = (msg.value * 10000 * 1e18) / 1e18;
+        // 简化计算：msg.value 单位是 wei（1 ETH = 10^18 wei），代币也有 18 位小数
+        // 所以 msg.value * 10000 直接得到正确结果
+        // 例如：1 ETH → 10^18 wei × 10000 = 10^22，表示 10000 个代币（每个代币 10^18）
+        uint256 baseTokenAmount = msg.value * 10000;
         uint256 tokenAmount = baseTokenAmount;
 
         // 早鸟奖励：前 N 名首次投资者获得额外代币
@@ -148,13 +153,16 @@ contract Crowdfunding is ReentrancyGuard {
     // ============ 提取资金：仅项目所有者，冷静期结束后才可提取 ============
     function withdrawFunds() public onlyOwner campaignEnded cooldownEnded nonReentrant {
         require(!s_isWithdrawn, "Funds already withdrawn");
-        require(address(this).balance > 0, "No funds to withdraw");
+        
+        uint256 balance = address(this).balance;  // 先记录余额
+        require(balance > 0, "No funds to withdraw");
 
         s_isWithdrawn = true;
-        (bool success, ) = i_owner.call{value: address(this).balance}("");
+        
+        (bool success, ) = i_owner.call{value: balance}("");
         require(success, "Transfer failed");
 
-        emit Withdrawn(i_owner, address(this).balance);
+        emit Withdrawn(i_owner, balance);  // 使用记录的余额
     }
 
     // ============ 退款：仅在冷静期内（成功时）或众筹失败时可退款 ============
@@ -345,6 +353,6 @@ contract Crowdfunding is ReentrancyGuard {
     }
 
     receive() external payable {
-        this.invest();
+        revert("Direct ETH transfer not allowed. Please call invest() instead.");
     }
 }

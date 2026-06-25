@@ -1,5 +1,5 @@
 {
-  "name": "ZhongChou-crowdfunding-dapp",
+  "name": "zhongchou-crowdfunding-dapp",
   "version": "1.0.0",
   "description": "ZhongChou",
   "scripts": {
@@ -20,5 +20,16 @@
   "dependencies": {
     "@openzeppelin/contracts": "^4.9.3",
     "dotenv": "^16.3.1"
-  }
+  },
+  "main": "hardhat.config.js",
+  "directories": {
+    "test": "test"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://gitee.com/wanuegitee/wo-mei-you-qian.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC"
 }
