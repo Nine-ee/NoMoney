@@ -7,7 +7,7 @@ async function main() {
   // 部署参数
   const GOAL = hre.ethers.utils.parseEther("10");
   const DURATION = 60 * 60 * 24 * 1; // 1天 ✅ 改成1天
-  const EARLY_BIRD_LIMIT = 10;        // 前10名
+  const EARLY_BIRD_LIMIT = 3;        // 前3名
   const EARLY_BIRD_BONUS = 2000;      // 额外20%奖励
 
   // 1. 部署代币合约

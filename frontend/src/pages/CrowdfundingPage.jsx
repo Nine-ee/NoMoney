@@ -31,9 +31,10 @@ const CrowdfundingPage = ({ account }) => {
   const [customInvestAmount, setCustomInvestAmount] = useState("");
   const [isEnded, setIsEnded] = useState(false);
   const [deadline, setDeadline] = useState(0);  // 保存截止时间戳
+  const [cooldownEndTime, setCooldownEndTime] = useState(0);  // 冷静期结束时间戳
+  const [cooldownPeriod, setCooldownPeriod] = useState(180);  // 冷静期时长（秒）
 
   const timerRef = useRef(null);
-  const cooldownTimerRef = useRef(null);  // 冷静期倒计时定时器
   const contractRef = useRef(null);
   const listenerRef = useRef(null);
   const loadingRef = useRef(false);
@@ -41,12 +42,12 @@ const CrowdfundingPage = ({ account }) => {
   const loadData = useCallback(async () => {
     // 防止重复加载
     if (loadingRef.current) {
-      console.log("[众筹] 正在加载中，跳过...");
+      // console.log("[众筹] 正在加载中，跳过...");
       return;
     }
     
     loadingRef.current = true;
-    console.log("[众筹] 加载数据中...");
+    // console.log("[众筹] 加载数据中...");
     
     try {
       await checkNetwork();
@@ -61,13 +62,13 @@ const CrowdfundingPage = ({ account }) => {
       const raisedVal = ethers.utils.formatEther(info.raised);
       const goalVal = ethers.utils.formatEther(info.target);
       
-      console.log(`[众筹] 状态检查:`, {
-        当前时间: now,
-        截止时间: Number(deadline),
-        已结束: ended,
-        已筹金额: raisedVal,
-        目标金额: goalVal
-      });
+      // console.log(`[众筹] 状态检查:`, {
+      //   当前时间: now,
+      //   截止时间: Number(deadline),
+      //   已结束: ended,
+      //   已筹金额: raisedVal,
+      //   目标金额: goalVal
+      // });
 
       setGoal(goalVal);
       setRaised(raisedVal);
@@ -80,9 +81,31 @@ const CrowdfundingPage = ({ account }) => {
       setIsEnded(ended);
       setDeadline(Number(deadline));  // 保存截止时间
 
+      const cdPeriod = Number(await contract.getCooldownPeriod());
+      setCooldownPeriod(cdPeriod);
+
       const [cdRemaining, cdActive] = await contract.getCooldownInfo();
       setIsCooldownActive(cdActive);
-      setCooldownRemaining(Number(cdRemaining));
+      if (cdActive) {
+        const deadlineNum = Number(deadline);
+        const endTime = deadlineNum + cdPeriod;
+        setCooldownEndTime(endTime);
+        setCooldownRemaining(Math.max(0, endTime - Math.floor(Date.now() / 1000)));
+      }
+
+      //自动发放代币
+      const tokensDistributed = await contract.s_tokensDistributed();
+      if (info.isSuccessful && !tokensDistributed && !cdActive && ended && account) {
+        try {
+          const contractWithSigner = await getCrowdfundingContract();
+          const tx = await contractWithSigner.distributeTokens();
+          await tx.wait(1);
+          // console.log("[众筹] 代币已自动发放");
+        } catch (e) {
+          // 可能是已经在发放中，忽略错误
+          // console.log("[众筹] 代币自动发放跳过:", e.message);
+        }
+      }
 
       if (account) {
         const contribution = await contract.s_investors(account);
@@ -104,20 +127,20 @@ const CrowdfundingPage = ({ account }) => {
         setClaimReason(claimInfo[1]);
       }
       // 状态日志
-      if (remainingTime !== "众筹已结束") {
-        console.log(`[众筹] 状态: 众筹进行中 | 已筹: ${ethers.utils.formatEther(info.raised)} ETH / 目标: ${ethers.utils.formatEther(info.target)} ETH`);
-      } else if (cdActive) {
-        console.log(`[众筹] 状态: 进入冷静期 | 剩余时间: ${Math.floor(cdRemaining / 60)}分 ${cdRemaining % 60}秒`);
-      } else {
-        console.log(`[众筹] 状态: 冷静期已结束 | ${info.isSuccessful ? '众筹成功' : '众筹失败'}`);
-      }
-      console.log("[众筹] 数据加载完成", { raised: raisedVal, goal: goalVal });
+      // if (remainingTime !== "众筹已结束") {
+      //   console.log(`[众筹] 状态: 众筹进行中 | 已筹: ${ethers.utils.formatEther(info.raised)} ETH / 目标: ${ethers.utils.formatEther(info.target)} ETH`);
+      // } else if (cdActive) {
+      //   console.log(`[众筹] 状态: 进入冷静期 | 剩余时间: ${Math.floor(cdRemaining / 60)}分 ${cdRemaining % 60}秒`);
+      // } else {
+      //   console.log(`[众筹] 状态: 冷静期已结束 | ${info.isSuccessful ? '众筹成功' : '众筹失败'}`);
+      // }
+      // console.log("[众筹] 数据加载完成", { raised: raisedVal, goal: goalVal });
     } catch (error) {
-      console.error("[众筹] 加载数据失败:", error);
+      // console.error("[众筹] 加载数据失败:", error);
     } finally {
       loadingRef.current = false;
     }
-  }, [account, remainingTime]);
+  }, [account]);
 
   const updateRemainingTime = useCallback(() => {
     const update = async () => {
@@ -128,6 +151,17 @@ const CrowdfundingPage = ({ account }) => {
         if (secs <= 0) {
           setRemainingTime("众筹已结束");
           setIsEnded(true);
+          if (!isCooldownActive && cooldownEndTime === 0) {
+            const dl = await contract.getDeadline();
+            const deadlineSec = Number(dl);
+            const now = Math.floor(Date.now() / 1000);
+            if (now >= deadlineSec && deadlineSec > 0) {
+              setDeadline(deadlineSec);
+              setIsCooldownActive(true);
+              setCooldownEndTime(deadlineSec + cooldownPeriod);
+              setCooldownRemaining(Math.max(0, deadlineSec + cooldownPeriod - now));
+            }
+          }
           return;
         }
         setIsEnded(false);
@@ -140,20 +174,37 @@ const CrowdfundingPage = ({ account }) => {
       }
     };
     update();
-  }, []);
+  }, [isCooldownActive, cooldownEndTime, cooldownPeriod]);
 
   useEffect(() => {
     loadData();
     updateRemainingTime();
+
+    let loadDataCounter = 0;
     timerRef.current = setInterval(() => {
       updateRemainingTime();
-      loadData();
+
+      if (isCooldownActive && cooldownEndTime > 0) {
+        const now = Math.floor(Date.now() / 1000);
+        const remaining = Math.max(0, cooldownEndTime - now);
+        setCooldownRemaining(remaining);
+        if (remaining <= 0) {
+          setIsCooldownActive(false);
+          loadData();
+        }
+      } else {
+        loadDataCounter++;
+        if (loadDataCounter >= 5) {
+          loadData();
+          loadDataCounter = 0;
+        }
+      }
     }, 1000);
 
     return () => {
       clearInterval(timerRef.current);
     };
-  }, [loadData, updateRemainingTime]);
+  }, [loadData, updateRemainingTime, isCooldownActive, cooldownEndTime]);
 
   useEffect(() => {
     const setupListener = async () => {
@@ -172,12 +223,12 @@ const CrowdfundingPage = ({ account }) => {
         
         // 3. 定义新监听器
         listenerRef.current = async (investor, amount, tokenAmount, isEarlyBirdFlag) => {
-          console.log("[众筹] 监听到投资事件:", {
-            investor,
-            amount: ethers.utils.formatEther(amount),
-            tokenAmount: ethers.utils.formatEther(tokenAmount),
-            isEarlyBird: isEarlyBirdFlag
-          });
+          // console.log("[众筹] 监听到投资事件:", {
+          //   investor,
+          //   amount: ethers.utils.formatEther(amount),
+          //   tokenAmount: ethers.utils.formatEther(tokenAmount),
+          //   isEarlyBird: isEarlyBirdFlag
+          // });
           // 延迟加载数据，等待链上状态更新
           setTimeout(() => loadData(), 1500);
         };
@@ -185,9 +236,9 @@ const CrowdfundingPage = ({ account }) => {
         // 4. 注册监听器
         contractRef.current.on("Invested", listenerRef.current);
         
-        console.log("[众筹] 事件监听已设置");
+        // console.log("[众筹] 事件监听已设置");
       } catch (error) {
-        console.error("[众筹] 设置事件监听失败:", error);
+        // console.error("[众筹] 设置事件监听失败:", error);
       }
     };
 
@@ -198,7 +249,7 @@ const CrowdfundingPage = ({ account }) => {
       if (contractRef.current && listenerRef.current) {
         try {
           contractRef.current.off("Invested", listenerRef.current);
-          console.log("[众筹] 事件监听已清理");
+          // console.log("[众筹] 事件监听已清理");
         } catch (e) {
           // 忽略清理错误
         }
@@ -224,7 +275,7 @@ const CrowdfundingPage = ({ account }) => {
       localStorage.setItem("fundingHistory", JSON.stringify(history));
       console.log("[众筹] 历史数据已记录", newEntry);
     } catch (e) {
-      console.error("[众筹] 记录历史数据失败:", e);
+      // console.error("[众筹] 记录历史数据失败:", e);
     }
   };
 
@@ -235,7 +286,7 @@ const CrowdfundingPage = ({ account }) => {
       return;
     }
     
-    console.log(`[众筹] 开始投资 ${ethAmount} ETH...`);
+    // console.log(`[众筹] 开始投资 ${ethAmount} ETH...`);
     setIsLoading(true);
     
     try {
@@ -255,16 +306,16 @@ const CrowdfundingPage = ({ account }) => {
         value: ethers.utils.parseEther(ethAmount),
       });
       
-      console.log(`[众筹] 交易已发送: ${tx.hash}`);
+      // console.log(`[众筹] 交易已发送: ${tx.hash}`);
       await tx.wait(1);
       
-      console.log(`[众筹] 投资成功！金额: ${ethAmount} ETH（代币将在冷静期结束后发放）`);
+      // console.log(`[众筹] 投资成功！金额: ${ethAmount} ETH（代币将在冷静期结束后发放）`);
       alert(`投资成功！已投入 ${ethAmount} ETH，代币将在冷静期结束后发放`);
       await loadData();
       await recordFundingHistory();
       
     } catch (error) {
-      console.error("[众筹] 投资失败:", error);
+      // console.error("[众筹] 投资失败:", error);
       
       // 捕获"众筹已结束"错误
       if (error.message.includes("Campaign has ended") || 
@@ -287,17 +338,17 @@ const CrowdfundingPage = ({ account }) => {
       alert("请先连接钱包！");
       return;
     }
-    console.log("[众筹] 正在结束众筹...");
+    // console.log("[众筹] 正在结束众筹...");
     setIsLoading(true);
     try {
       const contract = await getCrowdfundingContract();
       const tx = await contract.finalizeCampaign();
       await tx.wait(1);
-      console.log("[众筹] 众筹已结束");
+      // console.log("[众筹] 众筹已结束");
       alert("众筹已结束！");
       await loadData();
     } catch (error) {
-      console.error("[众筹] 结束众筹失败:", error);
+      // console.error("[众筹] 结束众筹失败:", error);
       const msg = error.reason || error.data?.message || error.message;
       const cleanMsg = typeof msg === "string" ? msg.split("(")[0].trim() : "请查看控制台";
       alert("操作失败: " + cleanMsg);
@@ -318,17 +369,20 @@ const CrowdfundingPage = ({ account }) => {
     if (!window.confirm("确定要提前结束众筹吗？")) {
       return;
     }
-    console.log("[众筹] 正在提前结束众筹...");
     setIsLoading(true);
     try {
       const contract = await getCrowdfundingContract();
       const tx = await contract.endCampaignEarly();
       await tx.wait(1);
-      console.log("[众筹] 众筹已提前结束");
       alert("众筹已提前结束！");
+      const currentTime = Math.floor(Date.now() / 1000);
+      setDeadline(currentTime);
+      setIsEnded(true);
+      setIsCooldownActive(true);
+      setCooldownEndTime(currentTime + cooldownPeriod);
+      setCooldownRemaining(cooldownPeriod);
       await loadData();
     } catch (error) {
-      console.error("[众筹] 提前结束众筹失败:", error);
       const msg = error.reason || error.data?.message || error.message;
       const cleanMsg = typeof msg === "string" ? msg.split("(")[0].trim() : "请查看控制台";
       alert("操作失败: " + cleanMsg);
@@ -342,18 +396,18 @@ const CrowdfundingPage = ({ account }) => {
       alert("请先连接钱包！");
       return;
     }
-    console.log("[众筹] 正在提取资金...");
+    // console.log("[众筹] 正在提取资金...");
     setIsLoading(true);
     try {
       const contract = await getCrowdfundingContract();
       const tx = await contract.withdrawFunds();
       await tx.wait(1);
-      console.log("[众筹] 资金提取成功");
+      // console.log("[众筹] 资金提取成功");
       setIsWithdrawn(true);
       alert("资金提取成功！");
       await loadData();
     } catch (error) {
-      console.error("[众筹] 提取资金失败:", error);
+      // console.error("[众筹] 提取资金失败:", error);
       const msg = error.reason || error.data?.message || error.message;
       const cleanMsg = typeof msg === "string" ? msg.split("(")[0].trim() : "请查看控制台";
       alert("提取资金失败: " + cleanMsg);
@@ -367,13 +421,13 @@ const CrowdfundingPage = ({ account }) => {
       alert("请先连接钱包！");
       return;
     }
-    console.log("[众筹] 正在申请退款...");
+    // console.log("[众筹] 正在申请退款..."); 
     setIsLoading(true);
     try {
       const contract = await getCrowdfundingContract();
       const tx = await contract.refund();
       await tx.wait(1);
-      console.log("[众筹] 退款成功");
+      // console.log("[众筹] 退款成功");
       setCanRefund(false);
       setHasRefunded(true);
       setUserContribution("0");
@@ -381,34 +435,10 @@ const CrowdfundingPage = ({ account }) => {
       alert("退款成功！ETH 已退回您的钱包");
       await loadData();
     } catch (error) {
-      console.error("[众筹] 退款失败:", error);
+      // console.error("[众筹] 退款失败:", error);
       const msg = error.reason || error.data?.message || error.message;
       const cleanMsg = typeof msg === "string" ? msg.split("(")[0].trim() : "请查看控制台";
       alert("退款失败: " + cleanMsg);
-    }
-    setIsLoading(false);
-  };
-
-  // ============ 自动发放代币（冷静期结束后,代币自动发放给所有投资者） ============
-  const handleDistributeTokens = async () => {
-    if (!account) {
-      alert("请先连接钱包！");
-      return;
-    }
-    console.log("[众筹] 正在自动发放代币...");
-    setIsLoading(true);
-    try {
-      const contract = await getCrowdfundingContract();
-      const tx = await contract.distributeTokens();
-      await tx.wait(1);
-      console.log("[众筹] 代币自动发放成功！");
-      alert("代币自动发放成功！所有投资者已收到 NaCT");
-      await loadData();
-    } catch (error) {
-      console.error("[众筹] 发放代币失败:", error);
-      const msg = error.reason || error.data?.message || error.message;
-      const cleanMsg = typeof msg === "string" ? msg.split("(")[0].trim() : "请查看控制台";
-      alert("操作失败: " + cleanMsg);
     }
     setIsLoading(false);
   };
@@ -570,25 +600,14 @@ const CrowdfundingPage = ({ account }) => {
               [!!] 提前结束众筹
             </button>
           )}
-          
-          {/* 结束众筹：仅项目发起者 */}
-          {account && account.toLowerCase() === ownerAddress.toLowerCase() && !isEnded && (
-            <button
-              className="btn btn-secondary"
-              onClick={handleFinalize}
-              disabled={isLoading}
-            >
-              结束众筹
-            </button>
-          )}
 
-          {/* 提取资金：仅项目发起者，冷静期结束后可提取（无论成功或失败） */}
-          {account && account.toLowerCase() === ownerAddress.toLowerCase() && !isWithdrawn && (
+          {/* 提取资金：仅项目发起者，仅众筹成功且冷静期结束后可提取 */}
+          {account && account.toLowerCase() === ownerAddress.toLowerCase() && !isWithdrawn && isSuccessful && (
             <button
               className="btn"
               onClick={handleWithdraw}
               disabled={isLoading || !isEnded || isCooldownActive}
-              style={{ 
+              style={{
                 background: "#10B981",
                 cursor: (isLoading || !isEnded || isCooldownActive) ? 'not-allowed' : 'pointer'
               }}
@@ -616,17 +635,6 @@ const CrowdfundingPage = ({ account }) => {
             <span style={{ color: "#10B981", padding: "0.5rem" }}>[OK] 已退款</span>
           )}
 
-          {/* 自动发放代币：冷静期结束后，任何人可触发 */}
-          {isEnded && !isCooldownActive && isSuccessful && !hasClaimed && (
-            <button
-              className="btn"
-              onClick={handleDistributeTokens}
-              disabled={isLoading || !account}
-              style={{ background: "#8fbaffff" }}
-            >
-              自动发放代币
-            </button>
-          )}
           {hasClaimed && (
             <span style={{ color: "#10B981", padding: "0.5rem" }}>[OK] 代币已自动发放</span>
           )}

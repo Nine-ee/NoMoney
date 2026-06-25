@@ -1,0 +1,12 @@
+npx hardhat node
+npx hardhat run scripts/deploy.js --network localhost
+cd frontend
+npm start
+
+
+//Crowdfunding.sol
+uint256 public constant COOLDOWN_PERIOD = 1 minutes;  //冷静期时长
+
+//deploy.js
+const DURATION = 60 * 60 * 24 * 1;  // 1天 众筹时间时长
+const EARLY_BIRD_LIMIT = 3;        // 前3名 早鸟名额

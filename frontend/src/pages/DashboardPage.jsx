@@ -63,8 +63,17 @@ const DashboardPage = () => {
     const history = JSON.parse(localStorage.getItem("fundingHistory") || "[]");
     console.log(`[看板] 加载到 ${history.length} 条历史数据`);
     if (history.length > 0) {
-      setFundingHistory(history.map(d => ({ time: d.time, amount: d.amount })));
-      setParticipantHistory(history.map(d => ({ time: d.time, count: d.count })));
+      // setFundingHistory(history.map(d => ({ time: d.time, amount: d.amount })));
+      // setParticipantHistory(history.map(d => ({ time: d.time, count: d.count })));
+      const dailyData = {};
+      history.forEach(d => {
+        const dateKey = d.time.split(" ")[0];
+        dailyData[dateKey] = { time: dateKey, amount: d.amount, count: d.count };
+      });
+      const dailyArray = Object.values(dailyData);
+      console.log(`[看板] 聚合后 ${dailyArray.length} 条每日数据`);
+      setFundingHistory(dailyArray.map(d => ({ time: d.time, amount: d.amount })));
+      setParticipantHistory(dailyArray.map(d => ({ time: d.time, count: d.count })));
     }
   }, []);
 

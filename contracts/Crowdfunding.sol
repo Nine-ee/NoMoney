@@ -35,7 +35,7 @@ contract Crowdfunding is ReentrancyGuard {
     // 冷静期结束条件：block.timestamp >= s_deadline + COOLDOWN_PERIOD
     // 冷静期内：投资者可申请退款，项目发起者不可提取资金，代币不发放
     // 冷静期结束后：代币自动发放（众筹成功时），项目发起者可提取资金
-    uint256 public constant COOLDOWN_PERIOD = 3 minutes;
+    uint256 public constant COOLDOWN_PERIOD = 1 minutes; //冷静期时长Time！！！！！！
 
     // 代币发放状态
     bool public s_tokensDistributed;       // 代币是否已自动发放
@@ -150,11 +150,14 @@ contract Crowdfunding is ReentrancyGuard {
         emit CampaignFinalized(s_isSuccessful);
     }
 
-    // ============ 提取资金：仅项目所有者，冷静期结束后才可提取 ============
+    // ============ 提取资金：仅项目所有者 ============
+    // 众筹失败时：不可提取资金，投资者可申请退款
+    // 众筹成功时：需等待冷静期结束后才可提取
     function withdrawFunds() public onlyOwner campaignEnded cooldownEnded nonReentrant {
         require(!s_isWithdrawn, "Funds already withdrawn");
+        require(s_isSuccessful, "Campaign not successful");
         
-        uint256 balance = address(this).balance;  // 先记录余额
+        uint256 balance = address(this).balance;
         require(balance > 0, "No funds to withdraw");
 
         s_isWithdrawn = true;
@@ -162,7 +165,7 @@ contract Crowdfunding is ReentrancyGuard {
         (bool success, ) = i_owner.call{value: balance}("");
         require(success, "Transfer failed");
 
-        emit Withdrawn(i_owner, balance);  // 使用记录的余额
+        emit Withdrawn(i_owner, balance);
     }
 
     // ============ 退款：仅在冷静期内（成功时）或众筹失败时可退款 ============
@@ -258,7 +261,11 @@ contract Crowdfunding is ReentrancyGuard {
     }
 
     // 获取冷静期信息
+    // 只有众筹成功时才有冷静期，众筹失败时没有冷静期
     function getCooldownInfo() public view returns (uint256 remainingTime, bool isActive) {
+        if (!s_isSuccessful) {
+            return (0, false);
+        }
         if (block.timestamp < s_deadline) {
             return (0, false);
         }
@@ -331,6 +338,10 @@ contract Crowdfunding is ReentrancyGuard {
 
     function getEarlyBirdBonusRate() public view returns (uint256) {
         return s_earlyBirdBonusRate;
+    }
+
+    function getCooldownPeriod() public pure returns (uint256) {
+        return COOLDOWN_PERIOD;
     }
 
     // 获取项目发起者地址

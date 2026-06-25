@@ -16,7 +16,7 @@ const ProfilePage = ({ account, setAccount }) => {
   const loadBalances = async () => {
     if (!account) return;
     setIsLoading(true);
-    console.log("[钱包] 加载余额中...");
+    // console.log("[钱包] 加载余额中...");
     try {
       // 先检查网络
       await checkNetwork();
@@ -25,15 +25,15 @@ const ProfilePage = ({ account, setAccount }) => {
       
       const balance = await provider.getBalance(account);
       setEthBalance(ethers.utils.formatEther(balance));
-      console.log("[钱包] ETH 余额:", ethers.utils.formatEther(balance));
+      // console.log("[钱包] ETH 余额:", ethers.utils.formatEther(balance));
 
       try {
         const tokenContract = getTokenContractReadOnly();
         const tokenBal = await tokenContract.balanceOf(account);
         setTokenBalance(ethers.utils.formatEther(tokenBal));
-        console.log("[钱包] 代币余额:", ethers.utils.formatEther(tokenBal));
+        // console.log("[钱包] 代币余额:", ethers.utils.formatEther(tokenBal));
       } catch (error) {
-        console.error("[钱包] 加载代币余额失败:", error);
+        // console.error("[钱包] 加载代币余额失败:", error);
         setTokenBalance("0");
       }
 
@@ -42,9 +42,9 @@ const ProfilePage = ({ account, setAccount }) => {
         name: network.name || "未知网络",
         chainId: network.chainId,
       });
-      console.log("[钱包] 余额加载完成");
+      // console.log("[钱包] 余额加载完成");
     } catch (error) {
-      console.error("[钱包] 加载余额失败:", error);
+      // console.error("[钱包] 加载余额失败:", error);
     }
     setIsLoading(false);
   };
@@ -56,22 +56,22 @@ const ProfilePage = ({ account, setAccount }) => {
       return;
     }
     try {
-      console.log("[钱包] 正在切换账户...");
+      // console.log("[钱包] 正在切换账户...");
       const accounts = await window.ethereum.request({
         method: "eth_requestAccounts",
       });
       if (accounts.length > 0) {
         setAccount(accounts[0]);
         localStorage.setItem("connectedAccount", accounts[0]);
-        console.log(`[钱包] 已切换到账户: ${accounts[0]}`);
+        // console.log(`[钱包] 已切换到账户: ${accounts[0]}`);
         alert(`已切换到账户: ${accounts[0].slice(0, 6)}...${accounts[0].slice(-4)}`);
         setTimeout(loadBalances, 500);
       }
     } catch (error) {
       if (error.code === 4001) {
-        console.log("[钱包] 用户拒绝切换账户");
+        // console.log("[钱包] 用户拒绝切换账户");
       } else {
-        console.error("[钱包] 切换账户失败:", error);
+        // console.error("[钱包] 切换账户失败:", error);
         alert("切换账户失败，请查看控制台");
       }
     }
