@@ -28,18 +28,28 @@ contract Crowdfunding is ReentrancyGuard {
     mapping(address => bool) public s_isEarlyBird;  // 是否为早鸟投资者
 
     // ============ 冷静期/退款机制 ============
-    // 冷静期：众筹结束后 3 分钟内，投资者可退款，期间不可提取资金、不可领取代币
+    // 冷静期时长：3 分钟
+    // 冷静期开始条件：众筹结束后（两种触发方式）
+    //   1. 众筹时间自然结束：block.timestamp >= s_deadline（初始设定的截止时间）
+    //   2. 项目发起者手动结束：调用 endCampaignEarly()，将 s_deadline 设置为当前时间
+    // 冷静期结束条件：block.timestamp >= s_deadline + COOLDOWN_PERIOD
+    // 冷静期内：投资者可申请退款，项目发起者不可提取资金，代币不发放
+    // 冷静期结束后：代币自动发放（众筹成功时），项目发起者可提取资金
     uint256 public constant COOLDOWN_PERIOD = 3 minutes;
 
-    // 待领取代币（冷静期结束后统一发放）
+    // 代币发放状态
+    bool public s_tokensDistributed;       // 代币是否已自动发放
+
+    // 待领取代币（冷静期结束后自动发放）
     mapping(address => uint256) public s_pendingTokens;   // 投资者 -> 待领取代币数量
-    mapping(address => bool) public s_tokensClaimed;      // 投资者 -> 是否已领取代币
+    mapping(address => bool) public s_tokensClaimed;      // 投资者 -> 是否已领取代币（备用）
 
     event Invested(address indexed investor, uint256 amount, uint256 tokenAmount, bool isEarlyBird);
     event Refunded(address indexed investor, uint256 amount);
     event Withdrawn(address indexed owner, uint256 amount);
     event TokensClaimed(address indexed investor, uint256 amount);
     event CampaignFinalized(bool success);
+    event TokensDistributed(uint256 totalAmount);
 
     // ============ 权限修饰器 ============
     modifier onlyOwner() {
@@ -47,18 +57,21 @@ contract Crowdfunding is ReentrancyGuard {
         _;
     }
 
+    // 众筹进行中：时间未到截止时间
     modifier campaignOngoing() {
         require(block.timestamp < s_deadline, "Campaign has ended");
         _;
     }
 
+    // 众筹已结束：时间已到截止时间（包括自然结束和手动提前结束）
     modifier campaignEnded() {
         require(block.timestamp >= s_deadline, "Campaign has not ended yet");
         _;
     }
 
+    // 冷静期已结束：众筹结束 + 冷静期时间已过
     modifier cooldownEnded() {
-        require(block.timestamp > s_deadline + COOLDOWN_PERIOD, "Cooldown period has not ended");
+        require(block.timestamp >= s_deadline + COOLDOWN_PERIOD, "冷静期已结束");
         _;
     }
 
@@ -80,6 +93,7 @@ contract Crowdfunding is ReentrancyGuard {
         s_earlyBirdBonusRate = earlyBirdBonusRate;
         s_isSuccessful = false;
         s_isWithdrawn = false;
+        s_tokensDistributed = false;
     }
 
     // ============ 投资函数：用户投入 ETH，记录投资但不立即发放代币 ============
@@ -179,19 +193,33 @@ contract Crowdfunding is ReentrancyGuard {
         emit Refunded(msg.sender, refundAmount);
     }
 
-    // ============ 领取代币：冷静期结束后，众筹成功才可领取 ============
-    function claimTokens() public campaignEnded cooldownEnded nonReentrant {
+    // ============ 自动发放代币：冷静期结束后，任何人可触发，代币自动发放给所有投资者 ============
+    // 代币在冷静期结束后自动发放，不需要投资者手动领取
+    // 调用条件：
+    //   1. 众筹已结束（自然结束或手动结束）
+    //   2. 冷静期已结束
+    //   3. 众筹成功
+    //   4. 代币尚未发放过
+    function distributeTokens() public campaignEnded cooldownEnded nonReentrant {
         require(s_isSuccessful, "Campaign is not successful");
-        require(!s_hasRefunded[msg.sender], "Already refunded");
-        require(!s_tokensClaimed[msg.sender], "Tokens already claimed");
+        require(!s_tokensDistributed, "Tokens already distributed");
 
-        uint256 tokenAmount = s_pendingTokens[msg.sender];
-        require(tokenAmount > 0, "No tokens to claim");
+        uint256 totalDistributed = 0;
+        for (uint256 i = 0; i < s_investorAddresses.length; i++) {
+            address investor = s_investorAddresses[i];
+            if (!s_hasRefunded[investor]) {
+                uint256 tokenAmount = s_pendingTokens[investor];
+                if (tokenAmount > 0) {
+                    s_tokensClaimed[investor] = true;
+                    s_token.mint(investor, tokenAmount);
+                    totalDistributed += tokenAmount;
+                    emit TokensClaimed(investor, tokenAmount);
+                }
+            }
+        }
 
-        s_tokensClaimed[msg.sender] = true;
-        s_token.mint(msg.sender, tokenAmount);
-
-        emit TokensClaimed(msg.sender, tokenAmount);
+        s_tokensDistributed = true;
+        emit TokensDistributed(totalDistributed);
     }
 
     // ============ 查询函数 ============
@@ -223,10 +251,10 @@ contract Crowdfunding is ReentrancyGuard {
 
     // 获取冷静期信息
     function getCooldownInfo() public view returns (uint256 remainingTime, bool isActive) {
-        if (block.timestamp >= s_deadline + COOLDOWN_PERIOD || !s_isSuccessful) {
+        if (block.timestamp < s_deadline) {
             return (0, false);
         }
-        if (block.timestamp < s_deadline) {
+        if (block.timestamp >= s_deadline + COOLDOWN_PERIOD) {
             return (0, false);
         }
         return (s_deadline + COOLDOWN_PERIOD - block.timestamp, true);

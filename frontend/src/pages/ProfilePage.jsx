@@ -196,7 +196,7 @@ const ProfilePage = ({ account, setAccount }) => {
                 <div className="number" style={{ color: "#10B981" }}>
                   {isLoading ? "加载中..." : parseFloat(tokenBalance).toFixed(0)}
                 </div>
-                <div className="label">XXCT 代币余额</div>
+                <div className="label">NaCT 代币余额</div>
               </div>
             </div>
           </div>

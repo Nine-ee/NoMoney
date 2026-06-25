@@ -93,7 +93,7 @@ const MyOrdersPage = ({ account }) => {
               <div className="number">
                 {orders.reduce((sum, order) => sum + order.price, 0)}
               </div>
-              <div className="label">总消费 (XXCT)</div>
+              <div className="label">总消费 (NaCT)</div>
             </div>
           </div>
         </div>

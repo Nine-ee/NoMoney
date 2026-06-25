@@ -51,8 +51,8 @@ const CrowdfundingPage = ({ account }) => {
       setOwnerAddress(await contract.getOwner());
 
       const [cdRemaining, cdActive] = await contract.getCooldownInfo();
-      setCooldownRemaining(Number(cdRemaining));
       setIsCooldownActive(cdActive);
+      setCooldownRemaining(Number(cdRemaining));
 
       if (account) {
         const contribution = await contract.s_investors(account);
@@ -73,11 +73,18 @@ const CrowdfundingPage = ({ account }) => {
         setCanClaim(claimInfo[0]);
         setClaimReason(claimInfo[1]);
       }
-      console.log("[众筹] 数据加载完成", { goal: info.target.toString(), raised: info.raised.toString() });
+      // 状态日志
+      if (remainingTime !== "众筹已结束") {
+        console.log(`[众筹] 状态: 众筹进行中 | 已筹: ${ethers.utils.formatEther(info.raised)} ETH / 目标: ${ethers.utils.formatEther(info.target)} ETH`);
+      } else if (cdActive) {
+        console.log(`[众筹] 状态: 进入冷静期 | 剩余时间: ${Math.floor(cdRemaining / 60)}分 ${cdRemaining % 60}秒`);
+      } else {
+        console.log(`[众筹] 状态: 冷静期已结束 | ${info.isSuccessful ? '众筹成功' : '众筹失败'}`);
+      }
     } catch (error) {
       console.error("[众筹] 加载数据失败:", error);
     }
-  }, [account]);
+  }, [account, remainingTime]);
 
   const updateRemainingTime = useCallback(() => {
     const update = async () => {
@@ -107,7 +114,10 @@ const CrowdfundingPage = ({ account }) => {
       updateRemainingTime();
       loadData();
     }, 1000);
-    return () => clearInterval(timerRef.current);
+
+    return () => {
+      clearInterval(timerRef.current);
+    };
   }, [loadData, updateRemainingTime]);
 
   useEffect(() => {
@@ -312,28 +322,26 @@ const CrowdfundingPage = ({ account }) => {
     setIsLoading(false);
   };
 
-  // ============ 领取代币（冷静期结束后，众筹成功时） ============
-  const handleClaimTokens = async () => {
+  // ============ 自动发放代币（冷静期结束后,代币自动发放给所有投资者） ============
+  const handleDistributeTokens = async () => {
     if (!account) {
       alert("请先连接钱包！");
       return;
     }
-    console.log("[众筹] 正在领取代币...");
+    console.log("[众筹] 正在自动发放代币...");
     setIsLoading(true);
     try {
       const contract = await getCrowdfundingContract();
-      const tx = await contract.claimTokens();
+      const tx = await contract.distributeTokens();
       await tx.wait(1);
-      console.log("[众筹] 代币领取成功！");
-      setCanClaim(false);
-      setHasClaimed(true);
-      alert("代币领取成功！NaCT 已发放到您的钱包");
+      console.log("[众筹] 代币自动发放成功！");
+      alert("代币自动发放成功！所有投资者已收到 NaCT");
       await loadData();
     } catch (error) {
-      console.error("[众筹] 领取代币失败:", error);
+      console.error("[众筹] 发放代币失败:", error);
       const msg = error.reason || error.data?.message || error.message;
       const cleanMsg = typeof msg === "string" ? msg.split("(")[0].trim() : "请查看控制台";
-      alert("领取代币失败: " + cleanMsg);
+      alert("操作失败: " + cleanMsg);
     }
     setIsLoading(false);
   };
@@ -537,19 +545,19 @@ const CrowdfundingPage = ({ account }) => {
             <span style={{ color: "#10B981", padding: "0.5rem" }}>[OK] 已退款</span>
           )}
 
-          {/* 领取代币：冷静期结束后 */}
-          {canClaim && !hasClaimed && (
+          {/* 自动发放代币：冷静期结束后，任何人可触发 */}
+          {isEnded && !isCooldownActive && isSuccessful && !hasClaimed && (
             <button
               className="btn"
-              onClick={handleClaimTokens}
+              onClick={handleDistributeTokens}
               disabled={isLoading || !account}
-              style={{ background: "#3B82F6" }}
+              style={{ background: "#8fbaffff" }}
             >
-              领取代币
+              自动发放代币
             </button>
           )}
           {hasClaimed && (
-            <span style={{ color: "#10B981", padding: "0.5rem" }}>[OK] 已领取代币</span>
+            <span style={{ color: "#10B981", padding: "0.5rem" }}>[OK] 代币已自动发放</span>
           )}
         </div>
 
@@ -560,12 +568,12 @@ const CrowdfundingPage = ({ account }) => {
         )}
         {isEnded && isCooldownActive && (
           <p style={{ color: "#3B82F6", marginTop: "1rem", background: "#EFF6FF", padding: "0.5rem", borderRadius: "8px" }}>
-            [=] 众筹已结束，进入冷静期（剩余 {Math.floor(cooldownRemaining / 60)}分 {cooldownRemaining % 60}秒）。期间投资者可申请退款。
+            [=] 众筹已结束，进入冷静期。期间投资者可申请退款。
           </p>
         )}
         {isEnded && !isCooldownActive && !isWithdrawn && (
           <p style={{ color: "#10B981", marginTop: "1rem" }}>
-            [OK] 冷静期已结束！{isSuccessful ? "投资者可领取代币" : "投资者可申请退款"}，项目方可提取资金。
+            [OK] 冷静期已结束！{isSuccessful ? "代币将自动发放给所有投资者" : "投资者可申请退款"}，项目方可提取资金。
           </p>
         )}
       </div>
