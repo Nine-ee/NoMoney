@@ -103,7 +103,6 @@ const CrowdfundingPage = ({ account }) => {
         setCanClaim(claimInfo[0]);
         setClaimReason(claimInfo[1]);
       }
-<<<<<<< HEAD
       // 状态日志
       if (remainingTime !== "众筹已结束") {
         console.log(`[众筹] 状态: 众筹进行中 | 已筹: ${ethers.utils.formatEther(info.raised)} ETH / 目标: ${ethers.utils.formatEther(info.target)} ETH`);
@@ -112,9 +111,7 @@ const CrowdfundingPage = ({ account }) => {
       } else {
         console.log(`[众筹] 状态: 冷静期已结束 | ${info.isSuccessful ? '众筹成功' : '众筹失败'}`);
       }
-=======
       console.log("[众筹] 数据加载完成", { raised: raisedVal, goal: goalVal });
->>>>>>> ad0f70b87e49ae46e0a6b2ab9cd953814100a302
     } catch (error) {
       console.error("[众筹] 加载数据失败:", error);
     } finally {
@@ -151,47 +148,12 @@ const CrowdfundingPage = ({ account }) => {
     timerRef.current = setInterval(() => {
       updateRemainingTime();
       loadData();
-<<<<<<< HEAD
     }, 1000);
 
     return () => {
       clearInterval(timerRef.current);
     };
   }, [loadData, updateRemainingTime]);
-=======
-    }, 10000);  // 10秒一次，不要每秒！
-    return () => clearInterval(timerRef.current);
-  }, []);  // 只在挂载时执行一次
-
-  // 冷静期实时倒计时（每秒更新）
-  useEffect(() => {
-    const COOLDOWN_PERIOD = 180;  // 3分钟 = 180秒
-    
-    const updateCooldown = () => {
-      if (!deadline || !isSuccessful) {
-        return;
-      }
-      
-      const now = Math.floor(Date.now() / 1000);
-      const cooldownEnd = deadline + COOLDOWN_PERIOD;
-      const remaining = cooldownEnd - now;
-      
-      if (remaining <= 0) {
-        setCooldownRemaining(0);
-        setIsCooldownActive(false);
-      } else if (now >= deadline) {
-        // 在冷静期内
-        setCooldownRemaining(remaining);
-        setIsCooldownActive(true);
-      }
-    };
-    
-    updateCooldown();
-    cooldownTimerRef.current = setInterval(updateCooldown, 1000);
-    
-    return () => clearInterval(cooldownTimerRef.current);
-  }, [deadline, isSuccessful]);
->>>>>>> ad0f70b87e49ae46e0a6b2ab9cd953814100a302
 
   useEffect(() => {
     const setupListener = async () => {

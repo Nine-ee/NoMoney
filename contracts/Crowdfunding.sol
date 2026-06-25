@@ -71,7 +71,7 @@ contract Crowdfunding is ReentrancyGuard {
 
     // 冷静期已结束：众筹结束 + 冷静期时间已过
     modifier cooldownEnded() {
-        require(block.timestamp >= s_deadline + COOLDOWN_PERIOD, "冷静期已结束");
+        require(block.timestamp >= s_deadline + COOLDOWN_PERIOD, unicode"冷静期已结束");
         _;
     }
 
