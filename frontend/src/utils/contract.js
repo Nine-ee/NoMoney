@@ -7,10 +7,10 @@ const { crowdfundingAddress, tokenAddress } = contractAddress;
 
 // ============ Hardhat 本地网络配置 ============
 const LOCAL_NETWORK = {
-  chainId: 31337,
-  chainIdHex: '0x7A69',
-  name: 'Hardhat Local',
-  rpcUrl: 'http://localhost:8545',
+  chainId: 11155111,
+  chainIdHex: '0xaa36a7',
+  name: 'Sepolia',
+  rpcUrl: 'https://sepolia.infura.io/v3/f082b5ba0cb4459680b5ebeefd13e4a1',
 };
 
 // ============ 网络检查：自动切换 MetaMask 到本地 Hardhat 网络 ============

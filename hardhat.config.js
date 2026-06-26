@@ -33,10 +33,19 @@ module.exports = {
         interval: 1000  // 1秒挖一个区块
       }
     },
-    localhost: {
+    localhost: 
+    {
       url: "http://127.0.0.1:8545",
       chainId: 31337,
       // 本地节点也设置自动挖矿
+      timeout: 60000
+    },
+
+    sepolia: {
+      url:"https://sepolia.infura.io/v3/f082b5ba0cb4459680b5ebeefd13e4a1",
+      accounts: ["6002713b70a9939e9209e24c457b774f7efaacfea778932a941437dfdad1966b"],
+      chainId: 11155111,  
+      gasPrice: "auto", 
       timeout: 60000
     }
   }
