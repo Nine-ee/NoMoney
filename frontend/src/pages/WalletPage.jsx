@@ -68,7 +68,7 @@ const WalletPage = ({ account }) => {
         <p><strong>代币名称：</strong>NaCT众筹代币</p>
         <p><strong>代币符号：</strong>NaCT</p>
         <p><strong>兑换比例：</strong>1 ETH = 10,000 NaCT</p>
-        <p><strong>早鸟奖励：</strong>前10名额外+20%</p>
+        <p><strong>早鸟奖励：</strong>前3名额外+20%</p>
         <p><strong>用途：</strong>在商城兑换纪念商品</p>
       </div>
     </div>

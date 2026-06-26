@@ -194,9 +194,9 @@ contract Crowdfunding is ReentrancyGuard {
         s_raisedAmount -= refundAmount;
 
         // 退款后检查是否仍满足目标
-        if (s_isSuccessful && s_raisedAmount < s_goal) {
-            s_isSuccessful = false;
-        }
+        //if (s_isSuccessful && s_raisedAmount < s_goal) {
+        //    s_isSuccessful = false;
+        //}
 
         (bool success, ) = msg.sender.call{value: refundAmount}("");
         require(success, "Refund failed");
